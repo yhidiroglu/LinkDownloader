@@ -1,7 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace LinkDownloader
 {
@@ -14,30 +16,43 @@ namespace LinkDownloader
             if (!Directory.Exists(DownloadPath))
                 Directory.CreateDirectory(DownloadPath);
 
-            List<string> urlList = new List<string> { MainUrl };
+            var urlList = new List<string> { MainUrl };
 
-            foreach (var url in urlList)
-            {
-                DownloadLink(url);
-            }
-
+            StartDownload(urlList);
         }
 
+        public static void StartDownload(List<string> urlList)
+        {
+            Parallel.ForEach(urlList, new ParallelOptions { MaxDegreeOfParallelism = 3 }, async url =>
+            {
+                urlList = await DownloadAndSaveLink(url);
+            });
 
-        public static List<string> DownloadLink(string url)
+            if (urlList != null)
+            {
+                StartDownload(urlList);
+            }
+        }
+
+        public async static Task<List<string>> DownloadAndSaveLink(string url)
         {
             string path = $@"{DownloadPath}{url.Split("://")[1]}.html";
             using (WebClient client = new WebClient()) // WebClient class inherits IDisposable
             {
-                string htmlCode = client.DownloadString(url);
+                string htmlCode = await client.DownloadStringTaskAsync(url);
                 File.WriteAllText(path, htmlCode);
+
+                var urlList = FindUrls(htmlCode);
+                return urlList;
             }
-            return new List<string>();
         }
 
-        public static bool SaveDownloadedFile(string content)
+        public static List<string> FindUrls(string htmlContent)
         {
-            return true;
+            var urlList = Regex.Matches(htmlContent, @"<a[^>]* href=""([^""]*)""").
+                Cast<Match>().Select(m => m.Groups[1].Value).ToList();
+
+            return urlList;
         }
     }
 }
