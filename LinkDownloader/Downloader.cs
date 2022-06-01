@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -13,8 +12,6 @@ namespace LinkDownloader
     public class Downloader
     {
         public static ConcurrentBag<string> DownloadedUrlList = new ConcurrentBag<string>();
-        public static ConcurrentBag<string> DownloadedComponentList = new ConcurrentBag<string>();
-
         public const string MainUrl = "https://tretton37.com";
 
         public Downloader()
@@ -24,30 +21,37 @@ namespace LinkDownloader
 
         public async Task StartDownload(List<string> urlList, string downloadPath)
         {
-            PrepareDownloadFolder(downloadPath);
+            if (!Directory.Exists(downloadPath))
+            {
+                Directory.CreateDirectory(downloadPath);
+            }
 
             Parallel.ForEach(urlList, new ParallelOptions { MaxDegreeOfParallelism = 3 }, async url =>
             {
-                urlList = DownloadAndSaveLink(url, downloadPath);
-
-                if (urlList != null)
+                if (!DownloadedUrlList.Contains(url))
                 {
-                    await StartDownload(urlList, downloadPath);
+                    DownloadedUrlList.Add(url);
+                    urlList = await DownloadAndSaveLink(url, downloadPath);
+
+                    if (urlList != null)
+                    {
+                        await StartDownload(urlList, downloadPath);
+                    }
                 }
             });
         }
 
-        private List<string> DownloadAndSaveLink(string url, string downloadPath)
+        private async Task<List<string>> DownloadAndSaveLink(string url, string downloadPath)
         {
-            string path = $@"{downloadPath}\{url.Split("://")[1]}.html"; //use this path with monolith
+            string path = $@"{downloadPath}/{url.Replace(".", "-").Split("://")[1]}.html"; //use this path with monolith
 
             using (WebClient client = new WebClient())
             {
-                //TODO: Call monolith library to download url
-                string htmlContent = client.DownloadString(url); //Download htmlcontent to find 
-
+                await StartMonolithExe(url, path);
+                //in normal, this block should find urls and return this list to download node urls as recursive.
+                var htmlContent = client.DownloadString(url);  
                 var urlList = FindUrls(htmlContent);
-                return urlList;
+                return null;
             }
         }
 
@@ -72,24 +76,16 @@ namespace LinkDownloader
             return result;
         }
 
-        private void PrepareDownloadFolder(string downloadPath)
+        private async Task StartMonolithExe(string url, string path)
         {
-            if (!Directory.Exists(downloadPath))
-            {
-                Directory.CreateDirectory(downloadPath);
-            }
+            System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo(@"C:\YilmazWorkspace\LinkDownloader\monolith.exe");
+            psi.Arguments = $"{url} -o {path}";
+            psi.RedirectStandardOutput = true;
+            psi.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            psi.UseShellExecute = false;
 
-            string assetsPath = string.Format("{0}/assets/i", downloadPath);
-            if (!Directory.Exists(assetsPath))
-            {
-                Directory.CreateDirectory(assetsPath);
-            }
-
-            string cssPath = string.Format("{0}/assets/css", downloadPath);
-            if (!Directory.Exists(cssPath))
-            {
-                Directory.CreateDirectory(cssPath);
-            }
+            var process = System.Diagnostics.Process.Start(psi);
+            process.WaitForExit();
         }
     }
 }
