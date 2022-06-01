@@ -30,8 +30,18 @@ namespace RainbowWebService.Services
             try
             {
                 List<string> urlList = new List<string> { weburl };
-                string downloadPath = string.Format("{0}{1}-{2}",
-                    MainDownloadPath, weburl.Replace(".", "-").Split("://")[1] ,DateTime.Now.ToString("yyyyMMddHHmmss"));
+                string downloadPath = string.Empty;
+
+                if (weburl.Contains("://"))
+                {
+                    downloadPath = string.Format("{0}{1}-{2}",
+                    MainDownloadPath, weburl.Replace(".", "-").Split("://")[1], DateTime.Now.ToString("yyyyMMddHHmmss"));
+                }
+                else
+                {
+                    downloadPath = string.Format("{0}{1}-{2}",
+                                        MainDownloadPath, weburl.Replace(".", "-"), DateTime.Now.ToString("yyyyMMddHHmmss"));
+                }
 
                 DownloadManager downloadManager = new DownloadManager();
                 downloadManager.StartDownload(urlList, downloadPath).Wait();
@@ -40,8 +50,8 @@ namespace RainbowWebService.Services
             }
             catch (Exception ex)
             {
-                errorMessage = "Cannot convert weburl to deeplink.";
-                Log.Error($"An error has occured when converting weburl to deeplink. Exception: {ex}");
+                errorMessage = "Cannot download this url.";
+                Log.Error($"An error has occured when downloading url. Exception: {ex}");
                 return result;
             }
         }

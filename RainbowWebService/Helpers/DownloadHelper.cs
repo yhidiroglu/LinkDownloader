@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -13,11 +14,9 @@ namespace RainbowWebService.Helper
         private static ConcurrentBag<string> DownloadedUrlList = new ConcurrentBag<string>();
         public async Task<List<string>> DownloadAndSaveLink(string url, string downloadPath)
         {
-            string path = $@"{downloadPath}/{url.Replace(".", "-").Split("://")[1]}.html"; //use this path with monolith
-
             using (WebClient client = new WebClient())
             {
-                StartMonolithExe(url, path).Wait();
+                StartMonolithExe(url, downloadPath).Wait();
 
                 //in normal, this block should find urls and return this list to download node urls as recursive.
                 var htmlContent = client.DownloadString(url);
@@ -49,7 +48,7 @@ namespace RainbowWebService.Helper
 
         public async Task StartMonolithExe(string url, string path)
         {
-            System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo(@"C:\YilmazWorkspace\LinkDownloader\monolith.exe");
+            System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo($@"{Directory.GetCurrentDirectory()}\monolith.exe");
             psi.Arguments = $"{url} -o {path}";
             psi.RedirectStandardOutput = true;
             psi.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
